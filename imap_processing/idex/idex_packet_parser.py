@@ -190,20 +190,20 @@ class RawDustEvent:
             "event_number"
         ] = "The unique number assigned to the impact by the FPGA"
         # TOF High Trigger Info 1
-        tofh_trigger_info_1 = packet.data["IDX__TXHDRHGTRIGCTRL1"].raw_value
-        trigger_dict["tof_high_trigger_level"] = tofh_trigger_info_1 & self.TEN_BIT_MASK
+        #tofh_trigger_info_1 = packet.data["IDX__TXHDRHGTRIGCTRL1"].raw_value
+        trigger_dict["tof_high_trigger_level"] = packet.data["IDX__TXHDRHGTRIGLVL"].raw_value
         trigger_notes_dict[
             "tof_high_trigger_level"
         ] = "Trigger level for the TOF High Channel"
         trigger_dict["tof_high_trigger_num_max_1_2"] = (
-            tofh_trigger_info_1 >> 10 & self.ELEVEN_BIT_MASK
+            packet.data["IDX__TXHDRHGTRIGNMAX12"].raw_value
         )
         trigger_notes_dict[
             "tof_high_trigger_num_max_1_2"
         ] = """Maximum number of samples between pulse 1 and 2 for TOF High double
                pulse triggering"""
         trigger_dict["tof_high_trigger_num_min_1_2"] = (
-            tofh_trigger_info_1 >> 21 & self.ELEVEN_BIT_MASK
+            packet.data["IDX__TXHDRHGTRIGNMIN12"].raw_value
         )
         trigger_notes_dict[
             "tof_high_trigger_num_min_1_2"
