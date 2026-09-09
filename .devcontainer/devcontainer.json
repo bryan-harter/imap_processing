@@ -6,13 +6,13 @@
 	"features": {
 		"ghcr.io/devcontainers/features/desktop-lite:1": {
 			"version": "latest"
-		}, "ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"version": "latest"
+		}, "ghcr.io/devcontainers/features/docker-in-docker:4.0.0": {
+			"version": "latest",
+			"moby": false
 		}
 	},
 	"forwardPorts": [6080],
 	"postCreateCommand": "poetry install",
-	"postStartCommand": ". $(poetry env info --path)/bin/activate",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -22,9 +22,6 @@
 			"settings": {
 				// not using venvs? uncomment this
 				"python.defaultInterpreterPath": "/usr/local/bin/python"
-
-				// use the active venv
-				// "python.defaultInterpreterPath": ".venv/bin/python3"
 			}
 		}
 	}
