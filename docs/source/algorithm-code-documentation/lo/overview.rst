@@ -238,3 +238,148 @@ algorithms:
 In the code, frames come from SPICE through
 ``imap_processing.spice.geometry.SpiceFrame`` and the map frame is parsed out
 of the L2 map descriptor. **[CODE]**
+
+Deliverables
+========================================
+
+Descriptor string grammar
+-------------------------
+
+Deliverable descriptors follow a positional pattern:
+
+.. code-block:: text
+
+   <mode+pivot>-<product>-<species>-<frame>-<sp>-<direction>-<coords>-<res>-<cadence>
+
+   e.g.  l090-ena-h-sf-nsp-ram-hae-6deg-12mo
+         t090-ena-h-hk-nsp-ram-hae-N/Adeg-5-7days
+         lxxx-enanbs-h-sf-nsp-ram-hae-6deg-12mo
+         l090-spx-h-sf-sp-ram-hae-6deg-12mo
+         l090-isnnbkgnd-h-sf-nsp-ram-hae-6deg-12mo
+
+.. note::
+
+   The token meanings below are **inferred from the structure of the Appendix C
+   table** (each row's descriptor read against its Frame / Quantity / SP-corr columns).
+   The PDF does not define the grammar explicitly. Verify against whatever descriptor
+   registry the SDC maintains before relying on it.
+
+=================  ============================================================
+Token              Apparent meaning
+=================  ============================================================
+``l090`` / ``t090``  ``l`` = HiRes, ``t`` = HiThru; ``090`` = pivot angle
+``lxxx`` / ``txxx``  same, all/multiple pivot angles (separate file per angle)
+``ena``            ENA intensity, sputter + bootstrap corrected
+``enanbs``         ENA intensity, **n**\ o **b**\ ootstrap/**s**\ putter
+                   correction (used where ESA ALL is requested)
+``spx``            spectral index (L3 only)
+``spxnbs``         spectral index, no bootstrap/sputter correction
+``isn``            ISN count rates
+``isnnbkgnd``      ISN count rates, background **not** subtracted
+``h`` / ``o``      light ion (H) / heavy ion (O)
+``sf``             spacecraft frame
+``hk``             heliosphere, **k**\ inematic (non-CG-corrected)
+``hf``             heliosphere frame, CG corrected
+``nsp`` / ``sp``   no survival probability correction / SP corrected
+``ram``            ram direction
+``hae``            Heliographic Aries Ecliptic
+``6deg``           6° pixels; ``N/Adeg`` for sky strips (no map resolution)
+``5-7days``        sky strip accumulated per pointing
+``12mo``           12-month accumulation
+=================  ============================================================
+
+L2 deliverables
+---------------
+
+**All L2 maps are 6° resolution, ram direction, and carry no survival probability
+correction.**
+
+For maps, the quantities bundled with intensity are: statistical uncertainty,
+non-statistical (systematic) uncertainty, exposure time, background intensity,
+background uncertainty, observation date (and standard deviation of observation date),
+and pivot angle range. **All L2 ENA maps are in the 90° pivot range.**
+
+*ENA maps:*
+
+=========  ==============================  =====================================  ==========
+Cadence    Frame                           Quantity                               Descriptor
+=========  ==============================  =====================================  ==========
+5-7 days   spacecraft                      intensity, light ion, ESA 4-7          ``l090-ena-h-sf-nsp-ram-hae-N/Adeg-5-7days``
+5-7 days   heliosphere (non CG)            intensity, light ion, ESA 4-7          ``l090-ena-h-hk-nsp-...-5-7days``
+5-7 days   heliosphere (CG)                intensity, light ion, ESA 4-7          ``l090-ena-h-hf-nsp-...-5-7days``
+5-7 days   spacecraft                      intensity, heavy ion, ESA 4-7          ``l090-ena-o-sf-nsp-...-5-7days``
+12 mo      spacecraft                      intensity, light ion, ESA 4-7          ``l090-ena-h-sf-nsp-ram-hae-6deg-12mo``
+12 mo      heliosphere (non CG)            intensity, light ion, ESA 4-7          ``l090-ena-h-hk-nsp-...-12mo``
+12 mo      heliosphere (CG)                intensity, light ion, ESA 4-7          ``l090-ena-h-hf-nsp-...-12mo``
+12 mo      spacecraft                      intensity, heavy ion, ESA 4-7          ``l090-ena-o-sf-nsp-...-12mo``
+12 mo      spacecraft                      intensity, **ESA ALL**                 ``l090-enanbs-h-sf-nsp-...-12mo``
+12 mo      heliosphere (non CG)            intensity **and energy**, ESA ALL      ``l090-enanbs-h-hk-nsp-...-12mo``
+12 mo      spacecraft                      intensity, ESA ALL, **pivot angles**   ``lxxx-enanbs-h-sf-nsp-...-12mo``
+12 mo      heliosphere (non CG)            intensity and energy, ESA ALL, pivot   ``lxxx-enanbs-h-hk-nsp-...-12mo``
+=========  ==============================  =====================================  ==========
+
+*ISN maps* (all spacecraft frame, count rates, all ESA steps, per mode):
+
+=========  ================================  ==========
+Cadence    Quantity                          Descriptor
+=========  ================================  ==========
+5-7 days   count rates, light ion, HiRes     ``l090-isn-h-sf-ram-hae-N/Adeg-5-7days``
+5-7 days   count rates, heavy ion, HiRes     ``l090-isn-o-sf-nsp-...-5-7days``
+5-7 days   count rates, light ion, HiThru    ``t090-isn-h-sf-ram-hae-N/Adeg-5-7days``
+5-7 days   count rates, heavy ion, HiThru    ``t090-isn-o-sf-nsp-...-5-7days``
+12 mo      count rates, light ion, HiRes     ``l090-isnnbkgnd-h-sf-nsp-...-6deg-12mo``
+12 mo      count rates, heavy ion, HiRes     ``l090-isnnbkgnd-o-sf-nsp-...-6deg-12mo``
+12 mo      count rates, light ion, HiThru    ``t090-isnnbkgnd-h-sf-...-6deg-12mo``
+12 mo      count rates, heavy ion, HiThru    ``t090-isnnbkgnd-o-sf-...-6deg-12mo``
+=========  ================================  ==========
+
+The 12-month ISN rows are annotated **"Also add off-90, not for delivery."** ISN rate
+maps will be provided for pivot angle pointing near 90°.
+
+**Delivery classification** (Appendix C colour-codes every row):
+
+===================  ==========================================================  =========
+Class                Meaning                                                     Action
+===================  ==========================================================  =========
+Best for Science     Best choice for almost all scientific studies               Deliver
+Science Quality      Good for scientific studies, complete sky sweep             Deliver
+Quick look science   Good for part of the sky; will be replaced by full sweep     Deliver
+Archival value       Marginal science value, most direct depiction of what the   **Don't
+                     instrument saw                                              deliver**
+Marginal             Not recommended for science, incomplete sky sweep           **Don't
+                                                                                 deliver**
+===================  ==========================================================  =========
+
+L2 row counts by class: 8 / 0 / 10 / 0 / 2 = **20 products** (30 counting HiRes and
+HiThru separately).
+
+L3 deliverables
+---------------
+
+**All L3 ENA maps are 6° resolution, ram direction.** L3 adds two things over L2: the
+``SP corr`` column (Y/N per row) and **spectral index** products (``spx``).
+
+Spectral index maps bundle: map spectral index, statistical uncertainty, background
+spectral index, background spectral index uncertainty, exposure time, observation date
+(and its standard deviation), and pivot range.
+
+L3 covers, at 5-7 day and 12-month cadences, across spacecraft / heliosphere-non-CG /
+heliosphere-CG frames:
+
+* **Intensity** maps, ESA 4-7, SP-corrected (``l090-ena-h-{sf,hk,hf}-sp-...``)
+* **Spectral index** maps, ESA 4-7, both SP-corrected and not
+  (``l090-spx-h-{sf,hk,hf}-{sp,nsp}-...``)
+* **Spectral index** maps, ESA ALL, no bootstrap/sputter
+  (``l090-spxnbs-h-{sf,hk}-nsp-...-12mo``)
+* **Spectral index**, ESA ALL, all pivot angles (``lxxx-spxnbs-...``, separate file
+  per pivot angle)
+* **ISN count rates** at 12 mo, light and heavy, HiRes and HiThru, spacecraft frame,
+  **final goodtimes, background subtracted** (``l090-isn-h-sf-ram-hae-6deg-12mo``) —
+  contrast with the L2 ``isnnbkgnd`` variants
+
+Pivot ranges for L3 differ by product: intensity and spectral index maps near 90° for
+the ESA 4-7 rows, but "all pivot ranges (e.g., first year 75°, 90°, 105°)" for the
+ESA ALL rows.
+
+L3 row counts by class: 10 / 3 / 10 / 0 / 2 = **25 products** (40 counting HiRes and
+HiThru separately).
