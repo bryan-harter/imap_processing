@@ -20,7 +20,7 @@ Instruments
    hi
    hit
    idex
-   lo
+   lo/index
    mag
    swapi
    swe
