@@ -111,5 +111,11 @@ make -C docs html SPHINXOPTS="-W --keep-going"
   a feature branch; test data is downloaded at runtime, never committed (no git-lfs).
 - Algorithm behavior is documented per-instrument in
   [docs/source/algorithm-code-documentation/](docs/source/algorithm-code-documentation/). Check there before changing science logic.
+  Some instruments have a full working reference distilled from their algorithm document —
+  a product inventory, the algorithms with equations, and an honest implementation-status
+  page listing deviations and gaps. **Read the instrument's page set before proposing or
+  estimating work on it.**
+  - IMAP-Lo: [docs/source/algorithm-code-documentation/lo/index.rst](docs/source/algorithm-code-documentation/lo/index.rst)
+  - MAG: [docs/source/algorithm-code-documentation/mag/index.rst](docs/source/algorithm-code-documentation/mag/index.rst)
 - CI runs the suite on Linux/macOS/Windows × Python 3.10–3.14, so avoid
   platform-specific paths and version-specific syntax.

@@ -21,7 +21,7 @@ Instruments
    hit
    idex
    lo/index
-   mag
+   mag/index
    swapi
    swe
    ultra
