@@ -15,8 +15,8 @@ Instruments
 .. toctree::
    :maxdepth: 1
 
-   codice
-   glows
+   codice/index
+   glows/index
    hi
    hit
    idex

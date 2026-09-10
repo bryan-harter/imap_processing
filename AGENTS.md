@@ -115,6 +115,8 @@ make -C docs html SPHINXOPTS="-W --keep-going"
   a product inventory, the algorithms with equations, and an honest implementation-status
   page listing deviations and gaps. **Read the instrument's page set before proposing or
   estimating work on it.**
+  - CoDICE: [docs/source/algorithm-code-documentation/codice/index.rst](docs/source/algorithm-code-documentation/codice/index.rst)
+  - GLOWS: [docs/source/algorithm-code-documentation/glows/index.rst](docs/source/algorithm-code-documentation/glows/index.rst)
   - IMAP-Lo: [docs/source/algorithm-code-documentation/lo/index.rst](docs/source/algorithm-code-documentation/lo/index.rst)
   - MAG: [docs/source/algorithm-code-documentation/mag/index.rst](docs/source/algorithm-code-documentation/mag/index.rst)
 - CI runs the suite on Linux/macOS/Windows × Python 3.10–3.14, so avoid
