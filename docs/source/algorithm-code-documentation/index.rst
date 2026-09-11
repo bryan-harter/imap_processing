@@ -18,7 +18,7 @@ Instruments
    codice/index
    glows/index
    hi
-   hit
+   hit/index
    idex/index
    lo/index
    mag/index

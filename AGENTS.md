@@ -117,6 +117,7 @@ make -C docs html SPHINXOPTS="-W --keep-going"
   estimating work on it.**
   - CoDICE: [docs/source/algorithm-code-documentation/codice/index.rst](docs/source/algorithm-code-documentation/codice/index.rst)
   - GLOWS: [docs/source/algorithm-code-documentation/glows/index.rst](docs/source/algorithm-code-documentation/glows/index.rst)
+  - HIT: [docs/source/algorithm-code-documentation/hit/index.rst](docs/source/algorithm-code-documentation/hit/index.rst)
   - IDEX: [docs/source/algorithm-code-documentation/idex/index.rst](docs/source/algorithm-code-documentation/idex/index.rst)
   - IMAP-Lo: [docs/source/algorithm-code-documentation/lo/index.rst](docs/source/algorithm-code-documentation/lo/index.rst)
   - MAG: [docs/source/algorithm-code-documentation/mag/index.rst](docs/source/algorithm-code-documentation/mag/index.rst)
