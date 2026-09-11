@@ -19,11 +19,11 @@ Instruments
    glows/index
    hi
    hit
-   idex
+   idex/index
    lo/index
    mag/index
    swapi/index
-   swe
+   swe/index
    ultra
    quicklooks
 
