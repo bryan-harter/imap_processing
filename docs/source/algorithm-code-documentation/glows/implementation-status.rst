@@ -242,7 +242,7 @@ L2. The document states that §3 supersedes §12 where they conflict, and the co
 follows §3. L1B carries ``imap_spin_angle_bin_cntr`` in raw ψ.
 
 Calibration is a division, not a multiplication
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **[DOC Eq. 53]** ``I_m = S_m × α``. **[CODE]** ``photon_flux = (counts /
 exposure) / calibration_factor``. Since ``α`` is in **cps per Rayleigh**, the
@@ -250,7 +250,7 @@ code is dimensionally correct and the equation as printed is not. Do not
 "correct" the code.
 
 Conversion table values differ from Table 11.1
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The document's Table 11.1 gives ``hv_voltage`` as 16 bits over 0-56012.82 V (a
 consequence of promoting a 12-bit ADC value to a 16-bit field). The delivered

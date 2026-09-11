@@ -22,7 +22,7 @@ Instruments
    idex
    lo/index
    mag/index
-   swapi
+   swapi/index
    swe
    ultra
    quicklooks

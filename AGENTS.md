@@ -119,5 +119,6 @@ make -C docs html SPHINXOPTS="-W --keep-going"
   - GLOWS: [docs/source/algorithm-code-documentation/glows/index.rst](docs/source/algorithm-code-documentation/glows/index.rst)
   - IMAP-Lo: [docs/source/algorithm-code-documentation/lo/index.rst](docs/source/algorithm-code-documentation/lo/index.rst)
   - MAG: [docs/source/algorithm-code-documentation/mag/index.rst](docs/source/algorithm-code-documentation/mag/index.rst)
+  - SWAPI: [docs/source/algorithm-code-documentation/swapi/index.rst](docs/source/algorithm-code-documentation/swapi/index.rst)
 - CI runs the suite on Linux/macOS/Windows × Python 3.10–3.14, so avoid
   platform-specific paths and version-specific syntax.

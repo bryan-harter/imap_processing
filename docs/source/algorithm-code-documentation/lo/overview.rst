@@ -264,29 +264,29 @@ Deliverable descriptors follow a positional pattern:
    The PDF does not define the grammar explicitly. Verify against whatever descriptor
    registry the SDC maintains before relying on it.
 
-=================  ============================================================
-Token              Apparent meaning
-=================  ============================================================
+===================  ==========================================================
+Token                Apparent meaning
+===================  ==========================================================
 ``l090`` / ``t090``  ``l`` = HiRes, ``t`` = HiThru; ``090`` = pivot angle
 ``lxxx`` / ``txxx``  same, all/multiple pivot angles (separate file per angle)
-``ena``            ENA intensity, sputter + bootstrap corrected
-``enanbs``         ENA intensity, **n**\ o **b**\ ootstrap/**s**\ putter
-                   correction (used where ESA ALL is requested)
-``spx``            spectral index (L3 only)
-``spxnbs``         spectral index, no bootstrap/sputter correction
-``isn``            ISN count rates
-``isnnbkgnd``      ISN count rates, background **not** subtracted
-``h`` / ``o``      light ion (H) / heavy ion (O)
-``sf``             spacecraft frame
-``hk``             heliosphere, **k**\ inematic (non-CG-corrected)
-``hf``             heliosphere frame, CG corrected
-``nsp`` / ``sp``   no survival probability correction / SP corrected
-``ram``            ram direction
-``hae``            Heliographic Aries Ecliptic
-``6deg``           6° pixels; ``N/Adeg`` for sky strips (no map resolution)
-``5-7days``        sky strip accumulated per pointing
-``12mo``           12-month accumulation
-=================  ============================================================
+``ena``              ENA intensity, sputter + bootstrap corrected
+``enanbs``           ENA intensity, **n**\ o **b**\ ootstrap/**s**\ putter
+                     correction (used where ESA ALL is requested)
+``spx``              spectral index (L3 only)
+``spxnbs``           spectral index, no bootstrap/sputter correction
+``isn``              ISN count rates
+``isnnbkgnd``        ISN count rates, background **not** subtracted
+``h`` / ``o``        light ion (H) / heavy ion (O)
+``sf``               spacecraft frame
+``hk``               heliosphere, **k**\ inematic (non-CG-corrected)
+``hf``               heliosphere frame, CG corrected
+``nsp`` / ``sp``     no survival probability correction / SP corrected
+``ram``              ram direction
+``hae``              Heliographic Aries Ecliptic
+``6deg``             6° pixels; ``N/Adeg`` for sky strips (no map resolution)
+``5-7days``          sky strip accumulated per pointing
+``12mo``             12-month accumulation
+===================  ==========================================================
 
 L2 deliverables
 ---------------

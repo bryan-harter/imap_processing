@@ -254,7 +254,7 @@ Burn this into memory; it structures the whole flag system.
   stay in the L2 product and the mask travels with them. Removal happens at L3A.
 
 Observational day, pointing, day mode, night mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * **Observational day** = **pointing** = the interval between two IMAP
   repointing maneuvers. Data products from L1A up are organised on this basis,
