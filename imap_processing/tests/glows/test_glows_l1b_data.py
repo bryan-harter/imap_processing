@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -7,6 +8,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
+from imap_processing.ancillary.ancillary_dataset_combiner import GlowsAncillaryCombiner
 from imap_processing.glows.l1b.glows_l1b import glows_l1b, glows_l1b_de
 from imap_processing.glows.l1b.glows_l1b_data import (
     AncillaryParameters,
@@ -328,6 +330,121 @@ def test_get_threshold():
         assert threshold == exp
 
 
+def _spin_offset_settings(times, values):
+    """Build PipelineSettings from a spin-offset correction time/value table."""
+    return PipelineSettings(
+        xr.Dataset(
+            {
+                "spin_offset_correction_times": (["t"], times),
+                "spin_offset_correction_values": (["t"], values),
+            }
+        )
+    )
+
+
+def test_get_spin_offset_correction():
+    """Asof lookup: a value takes effect from its timestamp forward, and times
+    before the first entry fall back to the earliest value.
+    """
+    settings = _spin_offset_settings(
+        ["2025-11-12T00:00:00", "2026-07-08T15:50:00"], [1.047, 2.347]
+    )
+
+    def lookup(time):
+        return settings.get_spin_offset_correction(np.datetime64(time))
+
+    assert lookup("2025-01-01T00:00:00") == pytest.approx(1.047)  # before first entry
+    assert lookup("2026-07-08T15:49:59") == pytest.approx(1.047)  # 1 s before switch
+    assert lookup("2026-07-08T15:50:00") == pytest.approx(2.347)  # switch is inclusive
+
+
+def test_get_spin_offset_correction_sorts_by_time():
+    """Out-of-order ancillary entries are sorted on construction."""
+    settings = _spin_offset_settings(
+        ["2026-07-08T15:50:00", "2025-11-12T00:00:00"], [2.347, 1.047]
+    )
+    assert settings.get_spin_offset_correction(
+        np.datetime64("2026-01-01T00:00:00")
+    ) == pytest.approx(1.047)
+
+
+def test_get_spin_offset_correction_fallbacks():
+    """The deprecated scalar raises; a missing table defaults to 0.0."""
+    with pytest.raises(ValueError, match="deprecated scalar"):
+        PipelineSettings(xr.Dataset({"spin_offset_correction": 1.5}))
+    empty = PipelineSettings(xr.Dataset())
+    assert empty.get_spin_offset_correction(np.datetime64("2026-01-01T00:00:00")) == 0.0
+
+
+def test_pipeline_settings_from_json_parses_spin_offset_table():
+    """ISO time strings survive the full JSON -> dataset -> PipelineSettings path,
+    parsing to datetime64 with a working asof lookup.
+    """
+    json_path = (
+        Path(__file__).parent
+        / "validation_data"
+        / "imap_glows_pipeline-settings_20251112_v001.json"
+    )
+    settings = PipelineSettings(
+        GlowsAncillaryCombiner.convert_json_to_dataset(json_path)
+    )
+    assert settings.get_spin_offset_correction(
+        np.datetime64("2026-01-01T00:00:00")
+    ) == pytest.approx(1.047)  # first entry
+    assert settings.get_spin_offset_correction(
+        np.datetime64("2026-07-08T15:50:00")
+    ) == pytest.approx(2.347)  # second entry takes effect at its timestamp
+
+
+def _mock_histogram_for_flags(number_of_events):
+    """Minimal HistogramL1B-like object exposing what compute_flags reads."""
+
+    class MockHistogram:
+        flags_set_onboard = 0
+        is_generated_on_ground = 1
+        filter_temperature_std_dev = 0.0
+        hv_voltage_std_dev = 0.0
+        spin_period_std_dev = 0.0
+        pulse_length_std_dev = 0.0
+        deserialize_flags = staticmethod(HistogramL1B.deserialize_flags)
+
+    hist = MockHistogram()
+    hist.number_of_events = number_of_events
+    return hist
+
+
+@pytest.mark.parametrize(
+    ("number_of_events", "n_sigma", "avg", "std", "expected"),
+    [
+        (100, 3.0, 100.0, 10.0, 1),  # inside the band -> good
+        (200, 3.0, 100.0, 10.0, 0),  # outside the band -> bad
+        (200, -1.0, 100.0, 10.0, 1),  # negative threshold disables the check
+        (200, 3.0, np.nan, np.nan, 1),  # no daytime reference disables the check
+    ],
+)
+def test_compute_flags_is_beyond_daily_statistical_error(
+    number_of_events, n_sigma, avg, std, expected
+):
+    """is_beyond_daily_statistical_error (flag 11) is bad (0) only for a block
+    outside the n-sigma band; a negative threshold or a missing (NaN) daytime
+    reference disables the check (good).
+    """
+    thresholds = {
+        "n_sigma_threshold_lower": n_sigma,
+        "n_sigma_threshold_upper": n_sigma,
+        "std_dev_threshold__celsius_deg": 1.0,
+        "std_dev_threshold__volt": 1.0,
+        "std_dev_threshold__sec": 1.0,
+        "std_dev_threshold__usec": 1.0,
+    }
+    settings = PipelineSettings(
+        xr.Dataset({k: xr.DataArray(v) for k, v in thresholds.items()})
+    )
+    hist = _mock_histogram_for_flags(number_of_events)
+    flags = HistogramL1B.compute_flags(hist, settings, np.double(avg), np.double(std))
+    assert flags[11] == expected
+
+
 @patch("imap_processing.glows.l1b.glows_l1b_data.geometry.imap_state")
 @patch("imap_processing.glows.l1b.glows_l1b_data.get_instrument_spin_phase")
 @patch("imap_processing.glows.l1b.glows_l1b_data.get_spin_data")
@@ -435,3 +552,100 @@ def test_update_spice_parameters_spin_axis_near_wrapping_point(
     # Standard deviations should be small (all points are within a few degrees)
     assert lon_std < 5.0, f"Longitude std dev {lon_std} should be small"
     assert lat_std < 1.0, f"Latitude std dev {lat_std} should be small"
+
+
+def test_flag_from_mask_dataset_tolerance():
+    """flag_from_mask_dataset matches block identifiers within a 5-second
+    tolerance rather than requiring an exact string match, since the
+    ancillary file's identifier can differ from this block's own by a few
+    seconds."""
+    mask_dataset = xr.Dataset(
+        {
+            "l1b_unique_block_identifier": (
+                ["time_block"],
+                ["2026-01-01T15:00:00", "2026-01-01T15:01:00"],
+            ),
+            "histogram_mask_array": (
+                ["time_block"],
+                ["1" * 10, "0" * 5 + "1" * 5],
+            ),
+        }
+    )
+
+    def fake_hist(identifier):
+        return SimpleNamespace(
+            unique_block_identifier=identifier, histogram=np.zeros(10)
+        )
+
+    all_ones = np.ones(10, dtype=bool)
+    all_zeros = np.zeros(10, dtype=bool)
+    second_entry_mask = np.array([False] * 5 + [True] * 5)
+
+    # Exact match.
+    mask = HistogramL1B.flag_from_mask_dataset(
+        fake_hist("2026-01-01T15:00:00"), mask_dataset
+    )
+    np.testing.assert_array_equal(mask, all_ones)
+
+    # Within the 5-second tolerance.
+    mask = HistogramL1B.flag_from_mask_dataset(
+        fake_hist("2026-01-01T15:00:03"), mask_dataset
+    )
+    np.testing.assert_array_equal(mask, all_ones)
+
+    # Exactly at the tolerance boundary (inclusive).
+    mask = HistogramL1B.flag_from_mask_dataset(
+        fake_hist("2026-01-01T15:00:05"), mask_dataset
+    )
+    np.testing.assert_array_equal(mask, all_ones)
+
+    # Just beyond the tolerance: no match, all-False mask.
+    mask = HistogramL1B.flag_from_mask_dataset(
+        fake_hist("2026-01-01T15:00:06"), mask_dataset
+    )
+    np.testing.assert_array_equal(mask, all_zeros)
+
+    # Equidistant from both entries (30s from each), beyond tolerance either way:
+    # no match.
+    mask = HistogramL1B.flag_from_mask_dataset(
+        fake_hist("2026-01-01T15:00:30"), mask_dataset
+    )
+    np.testing.assert_array_equal(mask, all_zeros)
+
+    # Closer to the second entry: matches the second entry's mask, not the first.
+    mask = HistogramL1B.flag_from_mask_dataset(
+        fake_hist("2026-01-01T15:00:58"), mask_dataset
+    )
+    np.testing.assert_array_equal(mask, second_entry_mask)
+
+
+def test_flag_from_mask_dataset_picks_closest_within_tolerance():
+    """When more than one ancillary entry falls within the tolerance window,
+    flag_from_mask_dataset uses the closest one."""
+    mask_dataset = xr.Dataset(
+        {
+            "l1b_unique_block_identifier": (
+                ["time_block"],
+                ["2026-01-01T15:00:00", "2026-01-01T15:00:04"],
+            ),
+            "histogram_mask_array": (
+                ["time_block"],
+                ["1" * 5 + "0" * 5, "0" * 5 + "1" * 5],
+            ),
+        }
+    )
+    hist = SimpleNamespace(
+        unique_block_identifier="2026-01-01T15:00:02", histogram=np.zeros(10)
+    )
+    # 2026-01-01T15:00:02 is within 5s of both entries (2s and 2s away - tied).
+    # np.argmin resolves ties by taking the first occurring minimum, matching
+    # the earlier (closer-in-index) entry.
+    mask = HistogramL1B.flag_from_mask_dataset(hist, mask_dataset)
+    np.testing.assert_array_equal(mask, np.array([True] * 5 + [False] * 5))
+
+    # Now favor the second entry unambiguously (1s vs 3s away).
+    hist = SimpleNamespace(
+        unique_block_identifier="2026-01-01T15:00:03", histogram=np.zeros(10)
+    )
+    mask = HistogramL1B.flag_from_mask_dataset(hist, mask_dataset)
+    np.testing.assert_array_equal(mask, np.array([False] * 5 + [True] * 5))

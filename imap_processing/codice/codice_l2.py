@@ -1499,6 +1499,26 @@ def process_codice_l2(
                 efficiencies,
                 SOLAR_WIND_POSITIONS,
             )
+            # Switch to energy_per_charge as the dimension coordinate now that
+            # the esa_step-based intensity math above is done, so DEPEND_1
+            # resolves to physical keV/e values instead of the esa_step index.
+            # esa_step/esa_step_label need to keep their own esa_step
+            # dimension though, so put them back after the swap.
+            esa_step = l2_dataset["esa_step"]
+            esa_step_label = l2_dataset["esa_step_label"]
+            l2_dataset = l2_dataset.swap_dims({"esa_step": "energy_per_charge"})
+            l2_dataset["esa_step"] = xr.DataArray(
+                esa_step.data, dims=["esa_step"], attrs=esa_step.attrs
+            )
+            l2_dataset["esa_step_label"] = xr.DataArray(
+                esa_step_label.data, dims=["esa_step"], attrs=esa_step_label.attrs
+            )
+            # Drop the DEPEND_1 inherited from L1B (pointing at esa_step) so
+            # energy_per_charge doesn't itself depend on esa_step.
+            l2_dataset["energy_per_charge"].attrs.pop("DEPEND_1", None)
+            l2_dataset["energy_per_charge_label"].attrs["DEPEND_1"] = (
+                "energy_per_charge"
+            )
             l2_dataset.attrs.update(
                 cdf_attrs.get_global_attributes("imap_codice_l2_lo-sw-species")
             )
@@ -1554,12 +1574,12 @@ def process_codice_l2(
     # make sure we drop vars not needed in l2 products
     vars_to_drop = [
         "acquisition_time_per_esa_step",
-        "rgfo_half_spin",
         "half_spin_per_esa_step",
-        "rgfo_esa_step",
-        "rgfo_spin_sector",
         "packet_version",
     ]
+    if dataset_name != "imap_codice_l2_lo-direct-events":
+        # rgfo_half_spin/esa_step/spin_sector are needed for lo-direct-events
+        vars_to_drop += ["rgfo_half_spin", "rgfo_esa_step", "rgfo_spin_sector"]
     for var in vars_to_drop:
         if var in l2_dataset.data_vars:
             l2_dataset = l2_dataset.drop_vars(var)

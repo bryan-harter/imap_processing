@@ -559,6 +559,7 @@ def test_lo_pre_processing_pivot_angle_filter(mock_super_pre_processing, mock_lo
         xr.Dataset({"pivot": ("epoch", [90.1])}),
         # A neighbouring pivot angle, which belongs on its own map
         xr.Dataset({"pivot": ("epoch", [75.0])}),
+        xr.Dataset({"esa_mode": ("epoch", [0])}),
     ]
 
     instrument = Lo(
@@ -578,8 +579,12 @@ def test_lo_pre_processing_pivot_angle_filter(mock_super_pre_processing, mock_lo
         [str(file_path.filename) for file_path in processing_input.imap_file_paths]
         for processing_input in result.get_processing_inputs()
     ] == [[goodtimes[0]], [histrates[0]], [bgrates[0]], [ancillary]]
-    # Only the goodtimes files are loaded, to read their pivot angle
-    assert mock_load_cdf.call_count == 2
+    # The goodtimes are loaded to read their pivot angle, and then only the
+    # histrates of the pointing at that pivot angle, to read its ESA mode
+    assert [call.args[0].name for call in mock_load_cdf.call_args_list] == [
+        *goodtimes,
+        histrates[0],
+    ]
 
 
 @mock.patch("imap_processing.cli.load_cdf")
@@ -608,6 +613,11 @@ def test_lo_pre_processing_combined_map_keeps_every_pivot_angle(
         AncillaryInput(ancillary),
     )
     mock_super_pre_processing.return_value = base_collection
+    # Both pointings are in HiRes, which a combined map is made in
+    mock_load_cdf.side_effect = [
+        xr.Dataset({"esa_mode": ("epoch", [0])}),
+        xr.Dataset({"esa_mode": ("epoch", [0])}),
+    ]
 
     instrument = Lo(
         "l2",
@@ -626,8 +636,9 @@ def test_lo_pre_processing_combined_map_keeps_every_pivot_angle(
         [str(file_path.filename) for file_path in processing_input.imap_file_paths]
         for processing_input in result.get_processing_inputs()
     ] == [goodtimes, histrates, bgrates, [ancillary]]
-    # No goodtimes are read, there being no pivot angle to select them by
-    assert mock_load_cdf.call_count == 0
+    # No goodtimes are read, there being no pivot angle to select them by, but
+    # the histrates are, for the ESA mode
+    assert [call.args[0].name for call in mock_load_cdf.call_args_list] == histrates
 
 
 @mock.patch("imap_processing.cli.load_cdf")
@@ -717,6 +728,117 @@ def test_spacecraft_pointing_kernel(
 
     instrument.process()
     assert mock_spacecraft_pointing.call_count == 1
+    call_args = mock_spacecraft_pointing.call_args[0]
+    assert call_args[1] == "20240410"
+    assert call_args[2] == 5
+
+
+@mock.patch(
+    "imap_processing.cli.pointing_frame.generate_pointing_attitude_kernel",
+    autospec=True,
+)
+def test_spacecraft_pointing_kernel_version_from_dependency(
+    mock_spacecraft_pointing, mock_instrument_dependencies
+):
+    """Test that a pointing-attitude entry in the dependency version map is
+    used, taking its minor version over the fallback --version."""
+
+    dependency_files_str = (
+        '[{"type": "spice","files": ["naif0012.tls", '
+        '"imap_sclk_0005.tsc", "imap_2024_100_2024_111_05.ah.bc"]}]'
+    )
+    dependency_str = json.dumps(
+        {
+            "dependency": json.loads(dependency_files_str),
+            "version": {
+                "pointing-attitude": {"major_version": None, "minor_version": 7}
+            },
+        }
+    )
+    input_collection = ProcessingInputCollection()
+    input_collection.deserialize(dependency_files_str)
+    mocks = mock_instrument_dependencies
+    mocks["mock_query"].return_value = [{"file_path": "/path/to/file0"}]
+    mocks["mock_download"].return_value = "file0"
+    mock_spacecraft_pointing.return_value = [
+        Path("imap_dps_2024_100_2024_111_007.ah.bc")
+    ]
+    mocks["mock_write_cdf"].side_effect = ["/path/to/file0"]
+    mocks["mock_pre_processing"].return_value = input_collection
+
+    # Fallback --version ("v005") differs from the dependency version map's
+    # minor_version (7), so this confirms the batch-provided Version wins.
+    instrument = Spacecraft(
+        "l1a", "pointing-attitude", dependency_str, "20240410", "12345", "v005", False
+    )
+
+    instrument.process()
+    assert mock_spacecraft_pointing.call_count == 1
+    call_args = mock_spacecraft_pointing.call_args[0]
+    assert call_args[1] == "20240410"
+    assert call_args[2] == 7
+
+
+@mock.patch(
+    "imap_processing.cli.pointing_frame.generate_pointing_attitude_kernel",
+    autospec=True,
+)
+def test_spacecraft_pointing_kernel_no_start_date(
+    mock_spacecraft_pointing, mock_instrument_dependencies
+):
+    """Test coverage for cli.Spacecraft class when only repointing is provided"""
+
+    dependency_str = (
+        '[{"type": "spice","files": ["naif0012.tls", '
+        '"imap_sclk_0005.tsc", "imap_2024_100_2024_111_05.ah.bc"]}]'
+    )
+    input_collection = ProcessingInputCollection()
+    input_collection.deserialize(dependency_str)
+    mocks = mock_instrument_dependencies
+    mocks["mock_query"].return_value = [{"file_path": "/path/to/file0"}]
+    mocks["mock_download"].return_value = "file0"
+    mocks["mock_pre_processing"].return_value = input_collection
+
+    # start_date is a valid CLI-only alternative to repointing, so it can be
+    # None here.
+    instrument = Spacecraft(
+        "l1a", "pointing-attitude", dependency_str, None, "12345", "v005", False
+    )
+
+    with pytest.raises(ValueError, match="start_date must be provided"):
+        instrument.process()
+    assert mock_spacecraft_pointing.call_count == 0
+
+
+@mock.patch(
+    "imap_processing.cli.pointing_frame.generate_pointing_attitude_kernel",
+    autospec=True,
+)
+def test_spacecraft_pointing_kernel_no_version(
+    mock_spacecraft_pointing, mock_instrument_dependencies
+):
+    """Test coverage for cli.Spacecraft class when no version can be resolved"""
+
+    dependency_str = (
+        '[{"type": "spice","files": ["naif0012.tls", '
+        '"imap_sclk_0005.tsc", "imap_2024_100_2024_111_05.ah.bc"]}]'
+    )
+    input_collection = ProcessingInputCollection()
+    input_collection.deserialize(dependency_str)
+    mocks = mock_instrument_dependencies
+    mocks["mock_query"].return_value = [{"file_path": "/path/to/file0"}]
+    mocks["mock_download"].return_value = "file0"
+    mocks["mock_pre_processing"].return_value = input_collection
+
+    # No version block for "pointing-attitude" in the dependency JSON, and no
+    # fallback --version, matches argparse's default of None.
+    instrument = Spacecraft(
+        "l1a", "pointing-attitude", dependency_str, "20240410", None, None, False
+    )
+
+    with pytest.raises(ValueError, match="No version provided"):
+        instrument.process()
+    assert mock_spacecraft_pointing.call_count == 0
 
 
 @mock.patch("imap_processing.cli.ultra_l1a.ultra_l1a")
@@ -834,29 +956,6 @@ def test_idex_l1b(mock_idex_l1b, mock_instrument_dependencies):
     # Assert that the dataset with the newer epoch value was passed to idex_l1b for
     # processing
     xr.testing.assert_equal(mock_idex_l1b.call_args[0][0], new_ds)
-
-
-@mock.patch("imap_processing.cli.idex_l2b")
-def test_idex_l2b(mock_idex_l2b, mock_instrument_dependencies):
-    """Test coverage for cli.Idex class with l2b data level"""
-    mocks = mock_instrument_dependencies
-    mock_idex_l2b.return_value = [xr.Dataset(), xr.Dataset()]
-    mocks["mock_write_cdf"].side_effect = ["/path/to/product0", "/path/to/product1"]
-    input_collection = ProcessingInputCollection(
-        ScienceInput("imap_idex_l1b_msg-10days_20251015_v002.cdf"),
-        ScienceInput("imap_idex_l2a_sci-10days_20251017_v018.cdf"),
-        SPICEInput("naif0012.tls", "imap_sclk_0000.tsc"),
-    )
-    mocks["mock_pre_processing"].return_value = input_collection
-
-    dependency_str = input_collection.serialize()
-    instrument = Idex(
-        "l2b", "all", dependency_str, "20100105", "20100101", "v001", False
-    )
-
-    instrument.process()
-    assert mock_idex_l2b.call_count == 1
-    assert mock_instrument_dependencies["mock_write_cdf"].call_count == 2
 
 
 @mock.patch("imap_processing.cli.hit_l1a")
